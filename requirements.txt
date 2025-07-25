@@ -1,0 +1,7 @@
+openai
+requests
+PyMuPDF
+faiss-cpu
+sentence-transformers
+python-dotenv
+google.generativeai
