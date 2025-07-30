@@ -1,21 +1,44 @@
-# document_loader.py
+import camelot
 import fitz  # PyMuPDF
-import requests
+import re
 import os
 
-def download_and_extract_text(path_or_url, save_path="policy.pdf"):
-    # If it's a URL, download it
-    if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
-        response = requests.get(path_or_url)
-        with open(save_path, "wb") as f:
-            f.write(response.content)
-        filepath = save_path
-    else:
-        filepath = path_or_url  # Use local file directly
+def clean_table(table):
+    rows = []
+    for row in table.df.values.tolist():
+        # Strip whitespace and drop rows with only one filled cell
+        cleaned = [cell.strip() for cell in row]
+        if sum([bool(c) for c in cleaned]) >= 2:
+            rows.append(cleaned)
+    return rows
 
-    # Extract text from PDF
-    doc = fitz.open(filepath)
-    full_text = ""
-    for page in doc:
-        full_text += page.get_text()
-    return full_text
+def extract_structured_table_with_fallback(pdf_path):
+    try:
+        print("📑 Extracting table (Camelot)...")
+        tables = camelot.read_pdf(pdf_path, pages='all', flavor='stream')
+
+        all_rows = []
+        for table in tables:
+            all_rows.extend(clean_table(table))
+
+        sublimit_rows = []
+        for row in all_rows:
+            if any("Robotic" in c or "cancer" in c.lower() or "cataract" in c.lower() for c in row):
+                sublimit_rows.append(row)
+
+        print("\n📑 DEBUG: Filtered Table Rows:")
+        for r in sublimit_rows:
+            print(r)
+
+        return "\n".join([" | ".join(r) for r in sublimit_rows]) if sublimit_rows else None
+
+    except Exception as e:
+        print("❌ Camelot extraction failed. Falling back to text:", e)
+        return None
+
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    with fitz.open(pdf_path) as doc:
+        for page in doc:
+            text += page.get_text()
+    return text

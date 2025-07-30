@@ -2,7 +2,7 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 import faiss
 
-def chunk_text(text, chunk_size=1000, overlap=100):
+def chunk_text(text, chunk_size=1000, overlap=200):
     chunks = []
     start = 0
     while start < len(text):

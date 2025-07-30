@@ -1,26 +1,8 @@
 {
   "questions": [
-    "What is the grace period for premium payment under the National Parivar Mediclaim Plus Policy?",
-    "What is the waiting period for pre-existing diseases (PED) to be covered?",
-    "Does this policy cover maternity expenses, and what are the conditions?",
-    "What is the waiting period for cataract surgery?",
-    "Are the medical expenses for an organ donor covered under this policy?",
-    "What is the No Claim Discount (NCD) offered in this policy?",
-    "Is there a benefit for preventive health check-ups?",
-    "How does the policy define a 'Hospital'?",
-    "What is the extent of coverage for AYUSH treatments?",
-    "Are there any sub-limits on room rent and ICU charges for Plan A?"
+    "60M, robotic prostate surgery, Delhi, 21L policy"
   ],
   "answers": [
-    "The document does not specify this.",
-    "The waiting period for pre-existing diseases (PED) is 36 months of continuous coverage after the date of inception of the first Global Health Care Policy with the insurer.",
-    "The policy covers medical treatment expenses for childbirth (including complicated deliveries and Cesarean sections during hospitalization), except for ectopic pregnancy.  It also covers expenses for miscarriage (unless due to an accident) and lawful medical termination of pregnancy during the policy period.",
-    "The document does not specify this.  While Cataracts are listed under the investigation section, no waiting period is explicitly stated for them.",
-    "Yes, the policy covers medical expenses for an organ donor up to the limits specified in the Policy Schedule, provided the organ donation complies with local regulations and the insured has an accepted inpatient hospitalization claim.",
-    "The document does not specify this.  While it mentions a Cumulative Bonus for Domestic Cover that increases the Limit of Indemnity by 20% annually if there's no claim in the preceding year, it does not refer to this as a \"No Claim Discount\".",
-    "The document does not specify this.",
-    "The policy defines a hospital as any institution established for inpatient care and day care treatment of illness and/or injuries, registered with local authorities under the Clinical Establishments (Registration and Regulation) Act, 2010, or under enactments specified in Section 56(1) of that Act, or meeting minimum criteria (24/7 qualified nursing staff; at least 10 inpatient beds in towns under 1,000,000 population, 15 otherwise; and a qualified medical practitioner in charge 24/7).  For international coverage, a hospital is any establishment licensed as a medical or surgical hospital in its operating country, where the patient is permanently supervised by a doctor.  Rest homes, spas, cure centers, and health resorts are excluded.",
-    "The document describes the requirements for AYUSH hospitals and day care centers to be eligible for coverage, but it does not specify the extent of coverage for AYUSH treatments.",
-    "The document does not specify this."
+    "✅ Yes, robotic prostate surgery is covered, up to ₹1,75,000."
   ]
 }
