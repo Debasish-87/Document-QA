@@ -6,6 +6,14 @@ from gpt_client import get_gemini_response
 
 app = Flask(__name__)
 
+# ✅ Root route for demo or health check
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({
+        "message": "Welcome to the HackRX Document QA API 🚀",
+        "usage": "POST to /api/v1/hackrx/run with 'documents' and 'questions' in the JSON body."
+    })
+
 @app.route("/api/v1/hackrx/run", methods=["POST"])
 def hackrx_run():
     data = request.get_json()
