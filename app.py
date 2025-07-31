@@ -9,10 +9,16 @@ app = Flask(__name__)
 # ✅ Root route for demo or health check
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({
-        "message": "Welcome to the HackRX Document QA API 🚀",
-        "usage": "POST to /api/v1/hackrx/run with 'documents' and 'questions' in the JSON body."
-    })
+    return """
+    <html>
+        <head><title>HackRX Document QA API</title></head>
+        <body>
+            <h1>🚀 Welcome to the HackRX Document QA API</h1>
+            <p>Usage: Send a POST request to <code>/api/v1/hackrx/run</code> with JSON body containing <code>'documents'</code> and <code>'questions'</code>.</p>
+        </body>
+    </html>
+    """
+
 
 @app.route("/api/v1/hackrx/run", methods=["POST"])
 def hackrx_run():
