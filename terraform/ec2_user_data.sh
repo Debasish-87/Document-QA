@@ -14,7 +14,7 @@ cd Document-QA
 pip3 install -r requirements.txt
 
 # Add your .env if needed (or fetch from SSM later)
-echo "GEMINI_API_KEY=your-api-key-here" > .env
+echo "GEMINI_API_KEY=AIzaSyCq__z4uytcpzmmLZgB2zm1cRLVnvvYctU" > .env
 
 # Run the app
 nohup python3 app.py > log.txt 2>&1 &
