@@ -8,8 +8,9 @@ echo "🚀 Starting deployment of Document-QA..."
 echo "🔧 Installing system packages..."
 sudo apt update
 sudo apt install -y python3-pip python3-dev git build-essential \
-    libgl1-mesa-glx poppler-utils ghostscript python3-opencv \
+    libgl1 poppler-utils ghostscript python3-opencv \
     tesseract-ocr libglib2.0-0 libsm6 libxrender1 libxext6
+
 
 # Step 2: Clone or update the repository
 cd /home/ubuntu
@@ -27,8 +28,13 @@ cd /home/ubuntu/Document-QA
 # Step 3: Create virtual environment if not exists
 if [ ! -d "venv" ]; then
     echo "🐍 Creating Python virtual environment..."
-    python3 -m venv venv
+    sudo apt install python3
+    sudo apt update -y
+    sudo apt install python3.12-venv -y
+    sudo python3 -m venv venv
 fi
+sudo chown -R ubuntu:ubuntu /home/ubuntu/Document-QA/venv
+
 
 echo "🐍 Activating virtual environment..."
 source venv/bin/activate
@@ -36,8 +42,8 @@ source venv/bin/activate
 # Step 4: Install Python dependencies
 echo "📦 Installing Python dependencies..."
 pip install --upgrade pip setuptools
-pip install -r requirements.txt
-pip install "camelot-py[cv]"
+pip3 install -r requirements.txt
+pip3 install "camelot-py[cv]"
 
 # Step 5: Create .env if missing
 if [ ! -f ".env" ]; then
