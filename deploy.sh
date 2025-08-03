@@ -6,7 +6,7 @@ EC2_USER="ubuntu"
 EC2_HOST="3.110.124.251"
 REPO_URL="https://github.com/Debasish-87/Document-QA.git"
 APP_DIR="/home/ubuntu/Document-QA"
-SECRET_NAME="hackrx/ssh_private_key"
+SECRET_NAME="hackrx/ssh_private_key_v2"
 
 # === Logging ===
 timestamp() {
