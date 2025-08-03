@@ -6,21 +6,27 @@ EC2_USER="ubuntu"
 EC2_HOST="3.110.124.251"
 REPO_URL="https://github.com/Debasish-87/Document-QA.git"
 APP_DIR="/home/ubuntu/Document-QA"
-KEY_FILE="hackRX.pem"   # Yahan apni local PEM file ka naam dena
+SECRET_NAME="hackrx/ssh_private_key"   # AWS Secrets Manager secret name
 
 echo "🚀 Starting remote deployment on EC2 instance $EC2_HOST..."
 
-# Check if PEM file exists
-if [ ! -f "$KEY_FILE" ]; then
-  echo "❌ ERROR: PEM file '$KEY_FILE' not found!"
+# Fetch SSH private key from AWS Secrets Manager
+echo "🔐 Retrieving SSH private key from AWS Secrets Manager..."
+PRIVATE_KEY=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text)
+
+if [[ -z "$PRIVATE_KEY" ]]; then
+  echo "❌ ERROR: Retrieved secret is empty or invalid!"
   exit 1
 fi
 
-chmod 400 "$KEY_FILE"
+# Save private key to a temp file
+TMP_KEY_FILE=$(mktemp)
+echo "$PRIVATE_KEY" > "$TMP_KEY_FILE"
+chmod 400 "$TMP_KEY_FILE"
 
 echo "🔧 Connecting to EC2 instance $EC2_HOST..."
 
-ssh -o StrictHostKeyChecking=no -i "$KEY_FILE" "$EC2_USER@$EC2_HOST" bash -s <<'EOF'
+ssh -o StrictHostKeyChecking=no -i "$TMP_KEY_FILE" "$EC2_USER@$EC2_HOST" bash -s <<'EOF'
 set -euo pipefail
 
 timestamp() {
@@ -92,5 +98,8 @@ nohup venv/bin/python3 app.py > log.txt 2>&1 &
 
 echo "$(timestamp) ✅ Deployment completed successfully."
 EOF
+
+# Cleanup temp private key file
+rm -f "$TMP_KEY_FILE"
 
 echo "✅ Remote deployment script finished."
