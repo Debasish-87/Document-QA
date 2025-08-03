@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout code (required step)
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
       - name: 🔐 Setup SSH Agent
@@ -18,20 +18,27 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: 📤 Upload deploy.sh to EC2
-        run: |
-          echo "📡 Uploading deploy.sh to EC2..."
-          scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/deploy.sh
-
-      - name: 🚀 SSH into EC2 and Run deploy.sh with ENV variables
+      - name: 🚀 SSH into EC2 and Deploy
         env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           API_TOKEN: ${{ secrets.API_TOKEN }}
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-            echo "📡 Connected to EC2. Starting deployment..."
-            export GEMINI_API_KEY="${GEMINI_API_KEY}"
-            export API_TOKEN="${API_TOKEN}"
-            chmod +x ~/deploy.sh
-            bash ~/deploy.sh
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
+            echo "📂 Pulling latest code from GitHub..."
+            cd ~/Document-QA
+            git pull origin main
+
+            echo "🔐 Writing secrets to .env..."
+            cat <<EOT > .env
+GEMINI_API_KEY=${GEMINI_API_KEY}
+API_TOKEN=${API_TOKEN}
+EOT
+
+            echo "🛠️ Making deploy.sh executable..."
+            chmod +x deploy.sh
+
+            echo "🚀 Running deploy.sh script..."
+            ./deploy.sh
           EOF
