@@ -18,28 +18,29 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: 📤 Upload deploy.sh to EC2
+      - name: 📝 Create .env file locally
         run: |
-          echo "📡 Uploading deploy.sh to EC2..."
-          scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/deploy.sh
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
+          echo "API_TOKEN=${{ secrets.API_TOKEN }}" >> .env
 
-      - name: 🚀 SSH into EC2, create .env from GitHub Secrets, and run deploy.sh
+      - name: 📤 Upload files to EC2
         run: |
-          echo "📡 Sending .env file content to EC2..."
+          echo "📡 Uploading deploy.sh and .env to EC2..."
+          scp -o StrictHostKeyChecking=no deploy.sh .env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/
 
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "bash -s" <<EOF
+      - name: 🚀 SSH into EC2 and run deploy.sh
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            echo '📡 Connected to EC2.'
+
             cd /home/${{ secrets.SSH_USER }}/Document-QA || {
               echo '❌ Project directory not found. Exiting...'
               exit 1
             }
 
-            echo '🔐 Creating .env file from GitHub secrets...'
-            cat <<EOT > .env
-GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-API_TOKEN=${{ secrets.API_TOKEN }}
-EOT
-            echo '✅ .env file created.'
+            # Move .env into the repo folder
+            mv /home/${{ secrets.SSH_USER }}/.env .env
 
             chmod +x ~/deploy.sh
             bash ~/deploy.sh
-EOF
+          "
