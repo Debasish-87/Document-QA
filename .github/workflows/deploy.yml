@@ -28,19 +28,22 @@ jobs:
           echo "📡 Uploading deploy.sh and .env to EC2..."
           scp -o StrictHostKeyChecking=no deploy.sh .env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/
 
-      - name: 🚀 SSH into EC2 and run deploy.sh
+      - name: 🚀 SSH into EC2, create .env from GitHub Secrets, and run deploy.sh
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-            echo '📡 Connected to EC2.'
-
-            cd /home/${{ secrets.SSH_USER }}/Document-QA || {
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<'EOF'
+            cd /home/${USER}/Document-QA || {
               echo '❌ Project directory not found. Exiting...'
               exit 1
             }
 
-            # Move .env into the repo folder
-            mv /home/${{ secrets.SSH_USER }}/.env .env
+            echo '🔐 Creating .env file from GitHub secrets...'
+            echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
+            echo "API_TOKEN=$API_TOKEN" >> .env
+            echo '✅ .env file created.'
 
             chmod +x ~/deploy.sh
             bash ~/deploy.sh
-          "
+      EOF
