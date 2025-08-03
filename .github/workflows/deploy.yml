@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout code from GitHub repo
+      - name: 📥 Checkout code (required step)
         uses: actions/checkout@v4
 
       - name: 🔐 Setup SSH Agent
@@ -23,10 +23,15 @@ jobs:
           echo "📡 Uploading deploy.sh to EC2..."
           scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/deploy.sh
 
-      - name: 🚀 Run deploy.sh on EC2
+      - name: 🚀 SSH into EC2 and Run deploy.sh with ENV variables
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
-            echo "📡 Connected to EC2"
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            echo "📡 Connected to EC2. Starting deployment..."
+            export GEMINI_API_KEY="${GEMINI_API_KEY}"
+            export API_TOKEN="${API_TOKEN}"
             chmod +x ~/deploy.sh
-            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} bash ~/deploy.sh
+            bash ~/deploy.sh
           EOF

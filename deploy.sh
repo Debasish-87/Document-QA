@@ -1,10 +1,10 @@
 #!/bin/bash
 
-set -e  # Exit if any command fails
+set -e  # Exit on any error
 
 echo "🚀 Starting deployment of Document-QA..."
 
-# Step 1: Update system and install system dependencies
+# Step 1: Update system and install dependencies
 echo "🔧 Installing system packages..."
 sudo apt update -y
 sudo apt install -y python3-pip python3-dev git build-essential \
@@ -41,23 +41,33 @@ pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 pip install "camelot-py[cv]"
 
-# Step 5: Create .env file if not exists
-if [ ! -f ".env" ]; then
-    echo "⚙️  Creating .env file with API key..."
-    echo "GEMINI_API_KEY=${GEMINI_API_KEY}" > .env
+# Step 5: Create or update .env file with secrets
+echo "⚙️  Writing secrets to .env file..."
+touch .env
+
+# Add or update GEMINI_API_KEY
+if ! grep -q "^GEMINI_API_KEY=" .env; then
+    echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> .env
 else
-    echo "ℹ️  .env file already exists. Skipping..."
+    sed -i "s|^GEMINI_API_KEY=.*|GEMINI_API_KEY=${GEMINI_API_KEY}|" .env
+fi
+
+# Add or update API_TOKEN
+if ! grep -q "^API_TOKEN=" .env; then
+    echo "API_TOKEN=${API_TOKEN}" >> .env
+else
+    sed -i "s|^API_TOKEN=.*|API_TOKEN=${API_TOKEN}|" .env
 fi
 
 # Step 6: Fix permissions
 echo "🔒 Setting file permissions..."
 sudo chown -R ubuntu:ubuntu /home/ubuntu/Document-QA
 
-# Step 7: Stop previous app instance if any
+# Step 7: Stop previous app instance if running
 echo "🧼 Killing any existing app processes..."
 pkill -f "python3 app.py" || true
 
-# Step 8: Run the app with nohup
+# Step 8: Run the app in background with nohup
 echo "🚀 Launching the app in background..."
 nohup venv/bin/python3 app.py > log.txt 2>&1 &
 APP_PID=$!
