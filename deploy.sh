@@ -1,75 +1,94 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# EC2 instance details
+# === Configuration ===
 EC2_USER=ubuntu
-EC2_HOST=3.110.124.251  # Replace with your instance's public IP or DNS
-KEY_PATH=/path/to/hackRX.pem  # Path to your private key for SSH access
+EC2_HOST=3.110.124.251               # Replace with your EC2 public IP or DNS
+KEY_PATH=/path/to/hackRX.pem         # Path to your private SSH key (must exist)
+REPO_URL="https://github.com/Debasish-87/Document-QA.git"
+APP_DIR="/home/ubuntu/Document-QA"
 
-echo "🚀 Starting remote deployment on EC2 instance..."
+echo "🚀 Starting remote deployment on EC2 instance $EC2_HOST..."
 
-ssh -o StrictHostKeyChecking=no -i "$KEY_PATH" $EC2_USER@$EC2_HOST << 'EOF'
-set -e
+# Check if SSH key file exists locally before attempting connection
+if [ ! -f "$KEY_PATH" ]; then
+  echo "❌ SSH key file not found at $KEY_PATH"
+  exit 1
+fi
 
-echo "Updating system and installing dependencies..."
-sudo apt update
-sudo apt install -y ruby python3-pip python3-dev git build-essential libgl1 poppler-utils ghostscript python3-opencv tesseract-ocr libglib2.0-0 libsm6 libxrender1 libxext6 python3.12-venv
+ssh -o StrictHostKeyChecking=no -i "$KEY_PATH" "$EC2_USER@$EC2_HOST" bash -s <<EOF
+set -euo pipefail
 
-cd /home/ubuntu
+timestamp() {
+  date +"[%Y-%m-%d %H:%M:%S]"
+}
 
-# Download and install CodeDeploy agent if not installed
-if ! command -v codedeploy-agent &> /dev/null; then
-  echo "Installing CodeDeploy agent..."
-  wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install
-  chmod +x ./install
+echo "\$(timestamp) Updating system and installing dependencies..."
+
+# Update and install necessary packages
+sudo apt-get update -y
+sudo apt-get install -y ruby python3-pip python3-dev git build-essential libgl1 poppler-utils ghostscript python3-opencv tesseract-ocr libglib2.0-0 libsm6 libxrender1 libxext6 python3.12-venv wget
+
+# Install CodeDeploy agent if missing
+if ! systemctl is-active --quiet codedeploy-agent; then
+  echo "\$(timestamp) Installing CodeDeploy agent..."
+  cd /tmp
+  wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install -O install
+  chmod +x install
   sudo ./install auto
-  sudo service codedeploy-agent start
-fi
-
-# Clone or update the repo
-if [ ! -d "Document-QA" ]; then
-  echo "Cloning Document-QA repository..."
-  git clone https://github.com/Debasish-87/Document-QA.git
+  sudo systemctl start codedeploy-agent
+  sudo systemctl enable codedeploy-agent
 else
-  echo "Updating existing Document-QA repository..."
-  cd Document-QA
-  git pull
-  cd ..
+  echo "\$(timestamp) CodeDeploy agent is already installed and running."
 fi
 
-cd Document-QA
+# Clone or update the application repository
+if [ ! -d "$APP_DIR" ]; then
+  echo "\$(timestamp) Cloning Document-QA repository..."
+  git clone "$REPO_URL" "$APP_DIR"
+else
+  echo "\$(timestamp) Updating existing Document-QA repository..."
+  cd "$APP_DIR"
+  git pull origin main || git pull  # fallback if no origin/main
+fi
 
-# Setup Python virtual environment if missing
+cd "$APP_DIR"
+
+# Create Python virtual environment if it does not exist
 if [ ! -d "venv" ]; then
-  echo "Creating Python virtual environment..."
+  echo "\$(timestamp) Creating Python virtual environment..."
   python3 -m venv venv
 fi
 
-# Change ownership of venv folder to ubuntu user
+# Ensure ownership to ubuntu user
 sudo chown -R ubuntu:ubuntu venv
 
-# Activate virtual environment and install requirements
+# Activate venv and install dependencies
 source venv/bin/activate
-pip install --upgrade pip setuptools
+pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 pip install "camelot-py[cv]"
 
-# Setup .env file with API keys
+# Setup .env file with API keys if missing (note: values come from your remote env)
 if [ ! -f ".env" ]; then
-  echo "Creating .env file with API keys..."
-  echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
-  echo "API_TOKEN=$API_TOKEN" >> .env
+  echo "\$(timestamp) Creating .env file with API keys..."
+  echo "GEMINI_API_KEY=\${GEMINI_API_KEY:-}" > .env
+  echo "API_TOKEN=\${API_TOKEN:-}" >> .env
 else
-  echo ".env file exists."
+  echo "\$(timestamp) .env file exists."
 fi
 
 sudo chown -R ubuntu:ubuntu .
 
-# Kill old app processes and start new one
-pkill -f "python3 app.py" || true
+# Gracefully restart the app
+APP_NAME="python3 app.py"
+echo "\$(timestamp) Stopping old app processes if any..."
+pkill -f "\$APP_NAME" || echo "\$(timestamp) No running app processes found."
 
-echo "Starting the app in background..."
+echo "\$(timestamp) Starting the app in background..."
 nohup venv/bin/python3 app.py > log.txt 2>&1 &
 
-echo "Deployment completed on EC2."
+echo "\$(timestamp) Deployment completed successfully."
 EOF
+
+echo "✅ Remote deployment script finished."
