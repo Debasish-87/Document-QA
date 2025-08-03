@@ -27,24 +27,19 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<EOF
             echo "✅ Connected to EC2"
-
             echo "📁 Navigating to project directory..."
             cd ~/Document-QA || git clone https://github.com/Debasish-87/Document-QA.git && cd Document-QA
-
             echo "📦 Pulling latest code from GitHub..."
             git pull origin main
-
             echo "🔐 Writing secrets to .env..."
-cat <<EOT > .env
-GEMINI_API_KEY=${GEMINI_API_KEY}
-API_TOKEN=${API_TOKEN}
-EOT
-
-            echo "🔧 Making deploy.sh executable..."
-            chmod +x deploy.sh
-
-            echo "🚀 Running deploy.sh script..."
-            ./deploy.sh
-
-            echo "✅ Deployment complete"
-EOF
+            
+            cat <<EOT > .env
+            GEMINI_API_KEY=${GEMINI_API_KEY}
+            API_TOKEN=${API_TOKEN}
+            EOT
+                        echo "🔧 Making deploy.sh executable..."
+                        chmod +x deploy.sh
+                        echo "🚀 Running deploy.sh script..."
+                        ./deploy.sh
+                        echo "✅ Deployment complete"
+            EOF
