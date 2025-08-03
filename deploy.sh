@@ -1,126 +1,73 @@
 #!/bin/bash
-set -euo pipefail
 
-# === Configuration ===
-EC2_USER="ubuntu"
-EC2_HOST="3.110.124.251"
-REPO_URL="https://github.com/Debasish-87/Document-QA.git"
-APP_DIR="/home/ubuntu/Document-QA"
-SECRET_NAME="hackrx/ssh_private_key_v2"
+set -e  # Exit immediately if any command fails
 
-# === Logging ===
-timestamp() {
-  date +"[%Y-%m-%d %H:%M:%S]"
-}
+echo "🚀 Starting deployment of Document-QA..."
 
-log() {
-  echo "$(timestamp) $1"
-}
+# Step 1: Update system and install system dependencies
+echo "🔧 Installing system packages..."
+sudo apt update
+sudo apt install -y python3-pip python3-dev git build-essential \
+    libgl1 poppler-utils ghostscript python3-opencv \
+    tesseract-ocr libglib2.0-0 libsm6 libxrender1 libxext6
 
-log "🚀 Starting remote deployment to EC2 instance: $EC2_HOST"
 
-# === Fetch private key from Secrets Manager ===
-log "🔐 Fetching SSH private key from AWS Secrets Manager: $SECRET_NAME"
-
-TMP_KEY_FILE=$(mktemp)
-
-if ! aws secretsmanager get-secret-value \
-  --secret-id "$SECRET_NAME" \
-  --query SecretString \
-  --output text > "$TMP_KEY_FILE"; then
-  log "❌ ERROR: Failed to retrieve secret: $SECRET_NAME"
-  exit 1
-fi
-
-if [[ ! -s "$TMP_KEY_FILE" ]]; then
-  log "❌ ERROR: Retrieved private key is empty"
-  rm -f "$TMP_KEY_FILE"
-  exit 1
-fi
-
-chmod 400 "$TMP_KEY_FILE"
-
-# === SSH and Deploy ===
-log "🔧 Connecting to EC2 and starting deployment..."
-
-ssh -o StrictHostKeyChecking=no -i "$TMP_KEY_FILE" "$EC2_USER@$EC2_HOST" bash -s <<'EOF'
-set -euo pipefail
-
-timestamp() {
-  date +"[%Y-%m-%d %H:%M:%S]"
-}
-
-log() {
-  echo "$(timestamp) $1"
-}
-
-log "🔧 Updating system and installing dependencies..."
-sudo apt-get update -y
-sudo apt-get install -y ruby python3-pip python3-dev git build-essential libgl1 poppler-utils ghostscript python3-opencv tesseract-ocr libglib2.0-0 libsm6 libxrender1 libxext6 python3.12-venv wget
-
-log "🛠️ Checking CodeDeploy agent..."
-if ! systemctl is-active --quiet codedeploy-agent; then
-  log "📦 Installing CodeDeploy agent..."
-  cd /tmp
-  wget https://aws-codedeploy-ap-south-1.s3.ap-south-1.amazonaws.com/latest/install -O install
-  chmod +x install
-  sudo ./install auto
-  sudo systemctl start codedeploy-agent
-  sudo systemctl enable codedeploy-agent
+# Step 2: Clone or update the repository
+cd /home/ubuntu
+if [ ! -d "Document-QA" ]; then
+    echo "📥 Cloning Document-QA repository..."
+    git clone https://github.com/Debasish-87/Document-QA.git
 else
-  log "✅ CodeDeploy agent is already active."
+    echo "📁 Updating existing Document-QA repository..."
+    cd Document-QA
+    git pull
 fi
 
-APP_DIR="/home/ubuntu/Document-QA"
-REPO_URL="https://github.com/Debasish-87/Document-QA.git"
+cd /home/ubuntu/Document-QA
 
-if [ ! -d "$APP_DIR" ]; then
-  log "📁 Cloning repository..."
-  git clone "$REPO_URL" "$APP_DIR"
-else
-  log "🔁 Pulling latest code..."
-  cd "$APP_DIR"
-  git reset --hard
-  git pull origin main || git pull
-fi
-
-cd "$APP_DIR"
-
+# Step 3: Create virtual environment if not exists
 if [ ! -d "venv" ]; then
-  log "🐍 Creating virtual environment..."
-  python3 -m venv venv
+    echo "🐍 Creating Python virtual environment..."
+    sudo apt install python3
+    sudo apt update -y
+    sudo apt install python3.12-venv -y
+    sudo python3 -m venv venv
 fi
+sudo chown -R ubuntu:ubuntu /home/ubuntu/Document-QA/venv
 
-sudo chown -R ubuntu:ubuntu venv
+
+echo "🐍 Activating virtual environment..."
 source venv/bin/activate
 
-log "📦 Installing Python dependencies..."
-pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
-pip install "camelot-py[cv]"
+# Step 4: Install Python dependencies
+echo "📦 Installing Python dependencies..."
+pip install --upgrade pip setuptools
+pip3 install -r requirements.txt
+pip3 install "camelot-py[cv]"
 
+# Step 5: Create .env if missing
 if [ ! -f ".env" ]; then
-  log "🔑 Creating .env file..."
-  echo "GEMINI_API_KEY=${GEMINI_API_KEY:-}" > .env
-  echo "API_TOKEN=${API_TOKEN:-}" >> .env
+    echo "⚙️  Creating .env file with API key..."
+    echo "GEMINI_API_KEY=AIzaSyCq__z4uytcpzmmLZgB2zm1cRLVnvvYctU" > .env
 else
-  log "✅ .env file already exists."
+    echo "ℹ️  .env file already exists. Skipping..."
 fi
 
-sudo chown -R ubuntu:ubuntu .
+# Step 6: Fix permissions
+echo "🔒 Fixing permissions..."
+sudo chown -R ubuntu:ubuntu /home/ubuntu/Document-QA
 
-APP_NAME="python3 app.py"
-log "🛑 Stopping previous app if running..."
-pkill -f "$APP_NAME" || log "No previous app process found."
+# Step 7: Stop previous app instance if any
+echo "🧼 Cleaning up old app processes (if any)..."
+pkill -f "python3 app.py" || true
 
-log "🚀 Starting app..."
+# Step 8: Run the app with nohup
+echo "🚀 Starting the app in background..."
 nohup venv/bin/python3 app.py > log.txt 2>&1 &
+APP_PID=$!
 
-log "✅ App deployed and running successfully."
-EOF
+echo "✅ App is now running with PID: $APP_PID"
+echo "📄 Last 10 log lines:"
+tail -n 10 log.txt
 
-# === Cleanup ===
-log "🧹 Cleaning up temporary private key file..."
-rm -f "$TMP_KEY_FILE"
-
-log "✅ Deployment script completed successfully."
+echo "📌 To follow logs: tail -f /home/ubuntu/Document-QA/log.txt"
