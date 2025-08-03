@@ -7,9 +7,6 @@ import re
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 
-GEMINI_API_KEY = "AIzaSyCihQiZOBvVGHfPCOiTZPCdoxMpV4xsXE0"
-API_TOKEN = "b57b1e7070937a460f4a0a5f98586be5bc8190724e1d80d137fe428ae7dba7c0"
-
 if not api_key:
     raise EnvironmentError("Missing GEMINI_API_KEY in .env")
 
