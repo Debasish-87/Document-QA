@@ -1,4 +1,4 @@
-name: 🚀 EC2 Auto Deploy with deploy.sh
+name: 🚀 EC2 Auto Deploy from Repo
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout code (not used on EC2, but required step)
+      - name: 📥 Checkout code from GitHub repo
         uses: actions/checkout@v4
 
       - name: 🔐 Setup SSH Agent
@@ -18,10 +18,15 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: 🚀 SSH into EC2 and Run deploy.sh
+      - name: 📤 Upload deploy.sh to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-            echo "📡 Connected to EC2. Starting deployment..."
+          echo "📡 Uploading deploy.sh to EC2..."
+          scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/deploy.sh
+
+      - name: 🚀 Run deploy.sh on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+            echo "📡 Connected to EC2"
             chmod +x ~/deploy.sh
-            ~/deploy.sh
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} bash ~/deploy.sh
           EOF
