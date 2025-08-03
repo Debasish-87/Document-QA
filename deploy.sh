@@ -2,34 +2,24 @@
 set -euo pipefail
 
 # === Configuration ===
-EC2_USER=ubuntu
-EC2_HOST=3.110.124.251
-SECRET_NAME="hackrx/ssh_private_key"
+EC2_USER="ubuntu"
+EC2_HOST="3.110.124.251"
 REPO_URL="https://github.com/Debasish-87/Document-QA.git"
 APP_DIR="/home/ubuntu/Document-QA"
-KEY_FILE="hackRX.pem"
+KEY_FILE="hackRX.pem"   # Yahan apni local PEM file ka naam dena
 
 echo "🚀 Starting remote deployment on EC2 instance $EC2_HOST..."
 
-# Trap to ensure cleanup of key file
-trap 'rm -f $KEY_FILE' EXIT
-
-# === Fetch the SSH private key ===
-echo "🔐 Retrieving SSH private key from AWS Secrets Manager..."
-SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text)
-
-# Check if SECRET_VALUE contains the PEM header (multi-line key)
-if ! echo "$SECRET_VALUE" | grep -q "-----BEGIN RSA PRIVATE KEY-----"; then
-  echo "❌ ERROR: Retrieved secret is not a valid RSA private key."
+# Check if PEM file exists
+if [ ! -f "$KEY_FILE" ]; then
+  echo "❌ ERROR: PEM file '$KEY_FILE' not found!"
   exit 1
 fi
 
-# Write the key to file preserving line breaks
-echo "$SECRET_VALUE" | sed 's/\\n/\n/g' > "$KEY_FILE"
 chmod 400 "$KEY_FILE"
 
-# === SSH and deploy ===
 echo "🔧 Connecting to EC2 instance $EC2_HOST..."
+
 ssh -o StrictHostKeyChecking=no -i "$KEY_FILE" "$EC2_USER@$EC2_HOST" bash -s <<'EOF'
 set -euo pipefail
 
@@ -102,8 +92,5 @@ nohup venv/bin/python3 app.py > log.txt 2>&1 &
 
 echo "$(timestamp) ✅ Deployment completed successfully."
 EOF
-
-echo "🧹 Cleaning up..."
-# Key file removed by trap
 
 echo "✅ Remote deployment script finished."
