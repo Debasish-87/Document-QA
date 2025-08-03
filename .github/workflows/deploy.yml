@@ -23,29 +23,23 @@ jobs:
           echo "📡 Uploading deploy.sh to EC2..."
           scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/deploy.sh
 
-      - name: 🚀 SSH into EC2 and Run deploy.sh with .env setup
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          API_TOKEN: ${{ secrets.API_TOKEN }}
+      - name: 🚀 SSH into EC2, create .env from GitHub Secrets, and run deploy.sh
         run: |
-          if [ -z "$GEMINI_API_KEY" ] || [ -z "$API_TOKEN" ]; then
-            echo "❌ One or more secrets are missing. Exiting..."
-            exit 1
-          fi
+          echo "📡 Sending .env file content to EC2..."
 
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-            echo '📡 Connected to EC2. Starting deployment...'
-
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "bash -s" <<EOF
             cd /home/${{ secrets.SSH_USER }}/Document-QA || {
               echo '❌ Project directory not found. Exiting...'
               exit 1
             }
 
-            echo '🔐 Writing secrets to .env file...'
-            echo 'GEMINI_API_KEY=${GEMINI_API_KEY}' > .env
-            echo 'API_TOKEN=${API_TOKEN}' >> .env
-            echo '✅ .env file created successfully.'
+            echo '🔐 Creating .env file from GitHub secrets...'
+            cat <<EOT > .env
+GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+API_TOKEN=${{ secrets.API_TOKEN }}
+EOT
+            echo '✅ .env file created.'
 
             chmod +x ~/deploy.sh
             bash ~/deploy.sh
-          "
+EOF
