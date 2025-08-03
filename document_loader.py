@@ -66,14 +66,16 @@ def extract_structured_table_with_fallback(pdf_path):
         for url in found_urls:
             print(url)
 
-        output = "\n".join([" | ".join(r) for r in sublimit_rows])
-        if found_urls:
-            output += "\n\n🔗 URLs:\n" + "\n".join(sorted(found_urls))
-
-        return output if output.strip() else None
+        if sublimit_rows:  # ✅ Only return if relevant rows found
+            output = "\n".join([" | ".join(r) for r in sublimit_rows])
+            if found_urls:
+                output += "\n\n🔗 URLs:\n" + "\n".join(sorted(found_urls))
+            return output
+        else:
+            raise ValueError("No relevant table rows found")
 
     except Exception as e:
-        print("❌ Camelot extraction failed. Falling back to text:", e)
+        print("❌ Camelot extraction failed or empty. Falling back to text:", e)
         return extract_text_and_urls_fallback(pdf_path)
 
 def extract_text_and_urls_fallback(pdf_path):
