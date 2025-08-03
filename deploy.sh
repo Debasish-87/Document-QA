@@ -18,14 +18,14 @@ trap 'rm -f $KEY_FILE' EXIT
 echo "🔐 Retrieving SSH private key from AWS Secrets Manager..."
 SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text)
 
-# Validate retrieved secret
-if [[ -z "$SECRET_VALUE" || "$SECRET_VALUE" != -----BEGIN* ]]; then
-  echo "❌ ERROR: Retrieved secret is empty or not a valid PEM key."
+# Check if SECRET_VALUE contains the PEM header (multi-line key)
+if ! echo "$SECRET_VALUE" | grep -q "-----BEGIN RSA PRIVATE KEY-----"; then
+  echo "❌ ERROR: Retrieved secret is not a valid RSA private key."
   exit 1
 fi
 
-# Write key to file
-echo "$SECRET_VALUE" > "$KEY_FILE"
+# Write the key to file preserving line breaks
+echo "$SECRET_VALUE" | sed 's/\\n/\n/g' > "$KEY_FILE"
 chmod 400 "$KEY_FILE"
 
 # === SSH and deploy ===
