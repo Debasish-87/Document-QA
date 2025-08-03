@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repository
+      - name: 📥 Checkout code (required step)
         uses: actions/checkout@v4
 
       - name: 🔐 Setup SSH Agent
@@ -18,28 +18,34 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: 🚀 SSH into EC2 and Deploy
+      - name: 📤 Upload deploy.sh to EC2
+        run: |
+          echo "📡 Uploading deploy.sh to EC2..."
+          scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/deploy.sh
+
+      - name: 🚀 SSH into EC2 and Run deploy.sh with .env setup
         env:
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           API_TOKEN: ${{ secrets.API_TOKEN }}
         run: |
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<EOF
-            echo "✅ Connected to EC2"
-            echo "📁 Navigating to project directory..."
-            cd ~/Document-QA || git clone https://github.com/Debasish-87/Document-QA.git && cd Document-QA
-            echo "📦 Pulling latest code from GitHub..."
-            git pull origin main
-            echo "🔐 Writing secrets to .env..."
-            
-            cat <<EOT > .env
-            GEMINI_API_KEY=${GEMINI_API_KEY}
-            API_TOKEN=${API_TOKEN}
-            EOT
-                        echo "🔧 Making deploy.sh executable..."
-                        chmod +x deploy.sh
-                        echo "🚀 Running deploy.sh script..."
-                        ./deploy.sh
-                        echo "✅ Deployment complete"
-            EOF
+          if [ -z "$GEMINI_API_KEY" ] || [ -z "$API_TOKEN" ]; then
+            echo "❌ One or more secrets are missing. Exiting..."
+            exit 1
+          fi
+
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+            echo '📡 Connected to EC2. Starting deployment...'
+
+            cd /home/${{ secrets.SSH_USER }}/Document-QA || {
+              echo '❌ Project directory not found. Exiting...'
+              exit 1
+            }
+
+            echo '🔐 Writing secrets to .env file...'
+            echo 'GEMINI_API_KEY=${GEMINI_API_KEY}' > .env
+            echo 'API_TOKEN=${API_TOKEN}' >> .env
+            echo '✅ .env file created successfully.'
+
+            chmod +x ~/deploy.sh
+            bash ~/deploy.sh
+          "
