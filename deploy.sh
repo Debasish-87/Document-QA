@@ -4,19 +4,21 @@ set -euo pipefail
 # === Configuration ===
 EC2_USER=ubuntu
 EC2_HOST=3.110.124.251               # Replace with your EC2 public IP or DNS
-KEY_PATH=/path/to/hackRX.pem         # Path to your private SSH key (must exist)
+SECRET_NAME="hackrx/ssh_private_key"  # Your secret name in Secrets Manager
 REPO_URL="https://github.com/Debasish-87/Document-QA.git"
 APP_DIR="/home/ubuntu/Document-QA"
 
 echo "🚀 Starting remote deployment on EC2 instance $EC2_HOST..."
 
-# Check if SSH key file exists locally before attempting connection
-if [ ! -f "$KEY_PATH" ]; then
-  echo "❌ SSH key file not found at $KEY_PATH"
-  exit 1
-fi
+# Fetch the SSH private key from AWS Secrets Manager and save it locally
+echo "🔐 Retrieving SSH private key from AWS Secrets Manager..."
+aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text > hackRX.pem
 
-ssh -o StrictHostKeyChecking=no -i "$KEY_PATH" "$EC2_USER@$EC2_HOST" bash -s <<EOF
+# Set permissions so only the user can read the key
+chmod 400 hackRX.pem
+
+# Use the private key to SSH into EC2 and run the deployment commands
+ssh -o StrictHostKeyChecking=no -i hackRX.pem "$EC2_USER@$EC2_HOST" bash -s <<EOF
 set -euo pipefail
 
 timestamp() {
@@ -90,5 +92,8 @@ nohup venv/bin/python3 app.py > log.txt 2>&1 &
 
 echo "\$(timestamp) Deployment completed successfully."
 EOF
+
+# Clean up the temporary key file
+rm -f hackRX.pem
 
 echo "✅ Remote deployment script finished."
