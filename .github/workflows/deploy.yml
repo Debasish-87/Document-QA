@@ -1,0 +1,27 @@
+name: 🚀 EC2 Auto Deploy with deploy.sh
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code (not used on EC2, but required step)
+        uses: actions/checkout@v4
+
+      - name: 🔐 Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 🚀 SSH into EC2 and Run deploy.sh
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            echo "📡 Connected to EC2. Starting deployment..."
+            chmod +x ~/deploy.sh
+            ~/deploy.sh
+          EOF
