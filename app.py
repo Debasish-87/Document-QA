@@ -11,6 +11,10 @@ from dotenv import load_dotenv
 load_dotenv()
 EXPECTED_TOKEN = os.getenv("API_TOKEN")
 
+GEMINI_API_KEY = "AIzaSyCihQiZOBvVGHfPCOiTZPCdoxMpV4xsXE0"
+API_TOKEN = "b57b1e7070937a460f4a0a5f98586be5bc8190724e1d80d137fe428ae7dba7c0"
+
+
 app = Flask(__name__)
 
 @app.route("/", methods=["GET"])
