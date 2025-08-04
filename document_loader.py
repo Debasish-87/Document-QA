@@ -41,6 +41,24 @@ def extract_urls(text):
     return re.findall(url_pattern, text)
 
 def extract_structured_table_with_fallback(pdf_path):
+    import re
+
+    def detect_tier_from_amounts(row):
+        joined = " ".join(row).replace(",", "")
+        amounts = re.findall(r"\d{2,7}", joined)
+        if not amounts:
+            return None
+        amounts = list(map(int, amounts))
+
+        # Detect tiers based on known values
+        if any(a in [25000, 100000, 200000] for a in amounts):
+            return "3L/4L/5L"
+        elif any(a in [50000, 175000, 350000] for a in amounts):
+            return "10L/15L/20L"
+        elif any(a in [75000, 250000, 500000] for a in amounts):
+            return ">20L"
+        return None
+
     try:
         print("📑 Extracting table (Camelot)...")
         tables = camelot.read_pdf(pdf_path, pages='all', flavor='stream')
@@ -53,8 +71,14 @@ def extract_structured_table_with_fallback(pdf_path):
         found_urls = set()
 
         for row in all_rows:
-            if any("Robotic" in c or "cancer" in c.lower() or "cataract" in c.lower() for c in row):
-                sublimit_rows.append(row)
+            row_clean = [c.strip().replace("`", "").replace("\n", " ") for c in row]
+            tier = detect_tier_from_amounts(row_clean)
+            if tier:
+                row_clean.insert(0, tier)
+
+                if len(row_clean) >= 3:  # Only keep informative rows
+                    sublimit_rows.append(row_clean)
+
             for cell in row:
                 found_urls.update(extract_urls(cell))
 
@@ -66,7 +90,7 @@ def extract_structured_table_with_fallback(pdf_path):
         for url in found_urls:
             print(url)
 
-        if sublimit_rows:  # ✅ Only return if relevant rows found
+        if sublimit_rows:
             output = "\n".join([" | ".join(r) for r in sublimit_rows])
             if found_urls:
                 output += "\n\n🔗 URLs:\n" + "\n".join(sorted(found_urls))
