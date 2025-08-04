@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 EXPECTED_TOKEN = os.getenv("API_TOKEN")
 
+
 app = Flask(__name__)
 
 @app.route("/", methods=["GET"])
