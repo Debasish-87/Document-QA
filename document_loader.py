@@ -2,43 +2,66 @@ import camelot
 import fitz  # PyMuPDF
 import re
 import os
-import tempfile
 import requests
 from urllib.parse import urlparse
 
+
 def download_and_extract_text(doc_path):
+    pdf_dir = "pdf"
+    os.makedirs(pdf_dir, exist_ok=True)  # Ensure the 'pdf' directory exists
+
     if is_url(doc_path):
         print("🌐 Detected URL. Downloading...")
         response = requests.get(doc_path)
         if response.status_code != 200:
             raise ValueError(f"Failed to download document: {doc_path}")
-        
-        suffix = ".pdf"
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
-            tmp_file.write(response.content)
-            local_path = tmp_file.name
-        print(f"✅ Downloaded to temp file: {local_path}")
+
+        filename = os.path.basename(urlparse(doc_path).path)
+        if not filename.lower().endswith(".pdf"):
+            filename = "downloaded_document.pdf"
+
+        local_path = os.path.join(pdf_dir, filename)
+
+        with open(local_path, "wb") as f:
+            f.write(response.content)
+
+        print(f"✅ Downloaded to: {local_path}")
     else:
         print("📂 Detected local file path.")
-        local_path = doc_path
-    
+        if not os.path.exists(doc_path):
+            raise FileNotFoundError(f"File not found: {doc_path}")
+
+        filename = os.path.basename(doc_path)
+        local_path = os.path.join(pdf_dir, filename)
+
+        if doc_path != local_path:
+            with open(doc_path, "rb") as src, open(local_path, "wb") as dst:
+                dst.write(src.read())
+            print(f"📁 Copied local file to: {local_path}")
+        else:
+            print(f"📁 File already in pdf directory: {local_path}")
+
     return extract_structured_table_with_fallback(local_path)
+
 
 def is_url(path):
     parsed = urlparse(path)
     return parsed.scheme in ("http", "https")
 
+
 def clean_table(table):
     rows = []
     for row in table.df.values.tolist():
         cleaned = [cell.strip() for cell in row]
-        if sum([bool(c) for c in cleaned]) >= 2:
+        if sum(bool(c) for c in cleaned) >= 2:
             rows.append(cleaned)
     return rows
+
 
 def extract_urls(text):
     url_pattern = r"https?://[^\s)\]]+"  # Match http/https links
     return re.findall(url_pattern, text)
+
 
 def extract_structured_table_with_fallback(pdf_path):
     def detect_tier_from_amounts(row):
@@ -61,7 +84,7 @@ def extract_structured_table_with_fallback(pdf_path):
         tables = camelot.read_pdf(pdf_path, pages='all', flavor='stream')
 
         all_rows = []
-        sublimit_rows = []  # Safe initialization
+        sublimit_rows = []
         found_urls = set()
 
         for table in tables:
@@ -103,6 +126,7 @@ def extract_structured_table_with_fallback(pdf_path):
         print("❌ Camelot extraction failed or empty. Falling back to text:", e)
         return extract_text_and_urls_fallback(pdf_path)
 
+
 def extract_text_and_urls_fallback(pdf_path):
     text = ""
     urls = set()
@@ -114,7 +138,7 @@ def extract_text_and_urls_fallback(pdf_path):
             urls.update(extract_urls(page_text))
 
     print("\n📝 Fallback Extracted Text (Truncated Preview):")
-    print(text[:1000])  # Show first 1000 chars
+    print(text[:1000])  # Show first 1000 characters
 
     print("\n🔗 Extracted URLs from raw text:")
     for url in urls:

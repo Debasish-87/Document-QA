@@ -1,12 +1,14 @@
 from flask import Flask, request, jsonify
-from document_loader import extract_structured_table_with_fallback, extract_text_and_urls_fallback
+from document_loader import (
+    download_and_extract_text,
+    extract_text_and_urls_fallback
+)
 from vectorizer import build_vector_index
 from retriever import get_top_chunks
 from gpt_client import get_gemini_response
 import os
-import tempfile
-import requests
 from dotenv import load_dotenv
+import sys
 
 # 🔐 Load environment variables
 load_dotenv()
@@ -46,23 +48,14 @@ def hackrx_run():
     questions = data["questions"]
     print(f"📄 Processing document: {doc_path}")
 
-    # ✅ Step 3: Download PDF if URL
-    if doc_path.startswith("http"):
-        print("🌐 Detected URL. Downloading...")
-        response = requests.get(doc_path)
-        if response.status_code != 200:
-            return jsonify({"error": "❌ Failed to download document."}), 400
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            tmp_file.write(response.content)
-            local_path = tmp_file.name
-        print(f"✅ Downloaded to temp file: {local_path}")
-    else:
-        print("📂 Detected local file path.")
-        local_path = doc_path
-
-    # ✅ Step 4: Extract content
+    # ✅ Step 3: Download and Extract PDF to ./pdf directory
     try:
-        table_text = extract_structured_table_with_fallback(local_path)
+        print("📥 Using download_and_extract_text to handle PDF download and extraction...")
+        table_text = download_and_extract_text(doc_path)
+
+        # Construct the actual path to the saved file
+        filename = os.path.basename(doc_path) if doc_path.startswith("http") else doc_path
+        local_path = os.path.join("pdf", os.path.basename(filename))
         fallback_text = extract_text_and_urls_fallback(local_path)
     except Exception as e:
         return jsonify({"error": f"❌ Document parsing failed: {str(e)}"}), 500
@@ -70,14 +63,15 @@ def hackrx_run():
     if not table_text and not fallback_text:
         return jsonify({"error": "❌ Failed to extract meaningful content from document."}), 400
 
-    # ✅ Step 5: Build vector index
+    # ✅ Step 4: Build vector index
     index, chunks, model = build_vector_index(table_text, fallback_text)
 
+    # ✅ Step 5: Answer questions
     answers = []
     for q in questions:
         print(f"\n🧪 Q: {q}")
         try:
-            top_chunks = get_top_chunks(q, index, chunks, model, k=10)
+            top_chunks = get_top_chunks(q, index, chunks, model, k=6)
 
             print("🔍 Top Chunks Used:")
             for i, ch in enumerate(top_chunks, start=1):
@@ -104,4 +98,9 @@ def hackrx_run():
     return jsonify({"answers": answers})
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8000)
+    log_file = open("log.txt", "a")  # Append mode
+    sys.stdout = log_file
+    sys.stderr = log_file
+
+    # Start Flask app
+    app.run(host="0.0.0.0", port=5000)
