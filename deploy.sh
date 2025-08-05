@@ -16,7 +16,7 @@ sudo apt install -y python3-pip python3-dev git build-essential \
 cd /home/ubuntu
 if [ ! -d "Document-QA" ]; then
     echo "📥 Cloning Document-QA repository..."
-    git clone https://github.com/Debasish-87/Document-QA.git
+    git clone https://github.com/Debasish-87/vfboefboebfbefsbsfbfbs.git
 else
     echo "📁 Updating existing Document-QA repository..."
     cd Document-QA
@@ -24,7 +24,7 @@ else
     git pull origin main
 fi
 
-cd /home/ubuntu/Document-QA
+cd /home/ubuntu/vfboefboebfbefsbsfbfbs
 
 # Step 3: Create virtual environment if not exists
 if [ ! -d "venv" ]; then
