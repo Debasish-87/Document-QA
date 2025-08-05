@@ -41,8 +41,6 @@ def extract_urls(text):
     return re.findall(url_pattern, text)
 
 def extract_structured_table_with_fallback(pdf_path):
-    import re
-
     def detect_tier_from_amounts(row):
         joined = " ".join(row).replace(",", "")
         amounts = re.findall(r"\d{2,7}", joined)
@@ -50,7 +48,6 @@ def extract_structured_table_with_fallback(pdf_path):
             return None
         amounts = list(map(int, amounts))
 
-        # Detect tiers based on known values
         if any(a in [25000, 100000, 200000] for a in amounts):
             return "3L/4L/5L"
         elif any(a in [50000, 175000, 350000] for a in amounts):
@@ -64,19 +61,18 @@ def extract_structured_table_with_fallback(pdf_path):
         tables = camelot.read_pdf(pdf_path, pages='all', flavor='stream')
 
         all_rows = []
+        sublimit_rows = []  # Safe initialization
+        found_urls = set()
+
         for table in tables:
             all_rows.extend(clean_table(table))
-
-        sublimit_rows = []
-        found_urls = set()
 
         for row in all_rows:
             row_clean = [c.strip().replace("`", "").replace("\n", " ") for c in row]
             tier = detect_tier_from_amounts(row_clean)
             if tier:
                 row_clean.insert(0, tier)
-
-                if len(row_clean) >= 3:  # Only keep informative rows
+                if len(row_clean) >= 3:
                     sublimit_rows.append(row_clean)
 
             for cell in row:
@@ -94,6 +90,11 @@ def extract_structured_table_with_fallback(pdf_path):
             output = "\n".join([" | ".join(r) for r in sublimit_rows])
             if found_urls:
                 output += "\n\n🔗 URLs:\n" + "\n".join(sorted(found_urls))
+
+            print("\n📊 Table Data Preview (first 5 rows):")
+            for row in sublimit_rows[:5]:
+                print(" | ".join(row))
+
             return output
         else:
             raise ValueError("No relevant table rows found")
@@ -105,6 +106,7 @@ def extract_structured_table_with_fallback(pdf_path):
 def extract_text_and_urls_fallback(pdf_path):
     text = ""
     urls = set()
+
     with fitz.open(pdf_path) as doc:
         for page in doc:
             page_text = page.get_text()
@@ -112,7 +114,7 @@ def extract_text_and_urls_fallback(pdf_path):
             urls.update(extract_urls(page_text))
 
     print("\n📝 Fallback Extracted Text (Truncated Preview):")
-    print(text[:1000])  # Preview first 1000 characters
+    print(text[:1000])  # Show first 1000 chars
 
     print("\n🔗 Extracted URLs from raw text:")
     for url in urls:

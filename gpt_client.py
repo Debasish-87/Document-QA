@@ -3,16 +3,12 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 import re
 
-# Load .env file and configure Gemini
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
-
 if not api_key:
     raise EnvironmentError("Missing GEMINI_API_KEY in .env")
-
 genai.configure(api_key=api_key)
 
-# Use official model name explicitly
 model = genai.GenerativeModel(model_name="gemini-1.5-flash")
 
 def get_gemini_response(question: str, context_chunks: list[str]) -> str:
@@ -34,7 +30,7 @@ Use ONLY the provided document excerpts to answer the question. Do not guess or 
 - If it's **above 20L** → match: **">20L"**
 - Do **not** match the wrong tier. Answer only if you find an exact tier.
 - If a treatment name appears (e.g., cataract, cancer, robotic surgery), use the exact associated amount for the correct tier.
-- If you can't find the answer, say: ❌ The document does not specify this.
+- If the answer is not explicitly stated, but strongly implied from the excerpts, explain using the original wording. If there's no match, say: ❌ The document does not specify this.
 
 ### Format:
 ✅ Yes, [treatment] is covered, up to ₹[amount].
