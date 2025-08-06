@@ -2,10 +2,14 @@ import camelot
 import fitz  # PyMuPDF
 import re
 import os
-import tempfile
-import requests
 from urllib.parse import urlparse
-from typing import List, Union, Optional, Tuple
+from typing import List, Union, Optional,Tuple
+import requests
+import time
+
+PDF_STORAGE_DIR = "pdfs"
+os.makedirs(PDF_STORAGE_DIR, exist_ok=True)
+
 
 def download_and_extract_text(doc_path: Union[str, List[str]]) -> Tuple[Optional[str], Optional[str]]:
     """
@@ -70,54 +74,40 @@ def download_and_extract_text(doc_path: Union[str, List[str]]) -> Tuple[Optional
     return combined_table, combined_fallback
 
 def download_document(url: str) -> Optional[str]:
-    """
-    Download a PDF document from a URL with robust error handling.
-    
-    Args:
-        url: URL of the PDF to download
-        
-    Returns:
-        Path to downloaded temporary file, or None if failed
-    """
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'User-Agent': 'Mozilla/5.0',
         'Accept': 'application/pdf'
     }
-    
+
     try:
-        # Verify URL points to a PDF
         if not url.lower().endswith('.pdf'):
-            head_response = requests.head(url, headers=headers, allow_redirects=True, timeout=10)
-            content_type = head_response.headers.get('Content-Type', '').lower()
-            if 'pdf' not in content_type:
-                print(f"❌ URL doesn't point to a PDF (Content-Type: {content_type})")
+            head = requests.head(url, headers=headers, timeout=10, allow_redirects=True)
+            if 'pdf' not in head.headers.get('Content-Type', ''):
+                print(f"❌ Not a PDF: {url}")
                 return None
-        
-        # Download the file
+
         response = requests.get(url, headers=headers, stream=True, timeout=30)
         response.raise_for_status()
-        
-        # Verify content is PDF
+
         content_type = response.headers.get('Content-Type', '').lower()
         if 'pdf' not in content_type:
-            print(f"❌ Downloaded content is not PDF (Content-Type: {content_type})")
+            print(f"❌ Content-Type not PDF: {content_type}")
             return None
-            
-        # Create temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+
+        filename = os.path.basename(urlparse(url).path) or f"file_{int(time.time())}.pdf"
+        safe_filename = f"{int(time.time())}_{filename}"
+        local_path = os.path.join(PDF_STORAGE_DIR, safe_filename)
+
+        with open(local_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
-                    tmp_file.write(chunk)
-            local_path = tmp_file.name
-            
-        print(f"✅ Downloaded {os.path.getsize(local_path)/1024:.1f} KB to {local_path}")
+                    f.write(chunk)
+
+        print(f"✅ Saved to: {local_path}")
         return local_path
-        
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Download failed for {url}: {str(e)}")
-        return None
+
     except Exception as e:
-        print(f"❌ Unexpected error downloading {url}: {str(e)}")
+        print(f"❌ Download error: {str(e)}")
         return None
 
 def validate_local_file(path: str) -> bool:
