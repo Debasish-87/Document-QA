@@ -1,4 +1,4 @@
-def get_top_chunks(query, index, chunks, model, k=15):
+def get_top_chunks(query, index, chunks, model, k=20):
     """
     Retrieve the top-k most relevant chunks for a given query using vector similarity search.
 
